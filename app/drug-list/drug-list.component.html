@@ -1,0 +1,186 @@
+<app-scroll-container [more]="hasMore()" [scrollOffset]="2500" [scrollDelay]="3000" (scrolled)="handleScroll($event)">
+
+  <!-- facet list (show only on screen size greater than small) -->
+  <div class="body-bg" fxLayout="row" fxFlex="100%" fxFlex.gt-sm="25%" fxHide fxShow.gt-sm>
+    <div *ngIf="facetsLoading">
+      <mat-progress-spinner [mode]="'indeterminate'" [diameter]="50" [value]="50">
+      </mat-progress-spinner>
+    </div>
+    <div *ngIf="facets" class="sidebar">
+      <!--
+            <h3 class="facetlist">Start Date</h3>
+            <table class="facet-table">
+                <tbody>
+                    <tr *ngFor="let facet of facets[0].start_date">
+                        <td><a class="facet-label">{{ facet.name }}</a></td>
+                        <td class="count">{{ facet.count }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <h3 class="facetlist">Completion Date</h3>
+            <table class="facet-table">
+                <tbody>
+                    <tr *ngFor="let facet of facets[0].completion_date">
+                        <td><a class="facet-label">{{ facet.name }}</a></td>
+                        <td class="count">{{ facet.count }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            -->
+      <div class="code-view-container" style="margin-left: auto;">
+        <button mat-mini-fab color="primary" aria-label="View facet code" (click)="openDialog('facets')">
+          <mat-icon>code</mat-icon>
+        </button>
+      </div>
+      <h3 class="facetlist">Manufacturers</h3>
+      <table class="facet-table">
+        <tbody>
+          <tr *ngFor="let facet of facets[0].manufacturers">
+            <td class="facet-name">
+              <a class="facet-label" (click)="onManufacturerFacetClicked(facet.name)">{{ facet.name }}</a>
+            </td>
+            <td class="count">{{ facet.count }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3 class="facetlist">Administration Route</h3>
+      <table class="facet-table">
+        <tbody>
+          <tr *ngFor="let facet of facets[0].routes">
+            <td class="facet-name"><a class="facet-label" (click)="onRouteFacetClicked(facet.name)">{{ titleCase(facet.name) }}</a></td>
+            <td class="count">{{ facet.count }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- common header -->
+  <div fxLayout="column" fxFlex>
+    <!-- paging and stats -->
+    <div fxLayout="row" fxFlex class="drug-list">
+      <div class="stats-no-chips"
+        *ngIf="drugs && drugs.length > 0 && searchVariables.drugSearchInput.term.length == 0 && manufacturerFilters.length == 0">
+        Showing 1 - {{drugs.length | number}} of {{drugs[0].count.total | number}}
+        <div class="code-view-container" style="margin-left: 60vw;">
+          <button mat-mini-fab color="primary" aria-label="View facet code" (click)="openDialog('drugs')">
+            <mat-icon>code</mat-icon>
+          </button>
+        </div>
+      </div>
+      <div class="stats-with-chips" *ngIf="searchVariables.drugSearchInput.term.length > 0 || manufacturerFilters.length > 0">
+        <!-- paging and stats -->
+        <span class="stats" *ngIf="drugs && drugs.length > 0">Showing 1 - {{drugs.length | number}} of {{drugs[0].count.total | number}}</span>
+        <div class="code-view-container">
+          <button mat-mini-fab color="primary" aria-label="View facet code" (click)="openDialog('drugs')">
+            <mat-icon>code</mat-icon>
+          </button>
+        </div>
+          <!-- search term -->
+        <mat-chip-list aria-label="Term" style="display: inline-block; justify-content: center;" removeable="true"
+          *ngIf="searchVariables.drugSearchInput.term && searchVariables.drugSearchInput.term.length > 0">
+          <mat-label class="chip-list">Find</mat-label>
+          <mat-chip [selectable]="selectable" [removable]="removable" (removed)="removeSearchTerm()"
+            *ngIf="' null ' != searchVariables.drugSearchInput.term && searchVariables.drugSearchInput.term.length > 0">
+            {{ searchVariables.drugSearchInput.term }}
+            <button matChipRemove *ngIf="removable">
+              <mat-icon>cancel</mat-icon>
+            </button><!-- add (remove) func -->
+          </mat-chip>
+        </mat-chip-list>
+        <!-- manufacturer filters -->
+        <mat-chip-list aria-label="Manufacturer Filters" style="display: inline-block; justify-content: center;"
+          removeable="true" *ngIf="manufacturerFilters.length > 0">
+          <mat-label class="chip-list">Manufacturer</mat-label>
+          <mat-chip *ngFor="let filter of manufacturerFilters" [selectable]="selectable" [removable]="removable"
+            (removed)="removeFilter(filter, manufacturerFilters)">
+            {{ objectValues(filter) }}
+            <button matChipRemove *ngIf="removable">
+              <mat-icon>cancel</mat-icon>
+            </button>
+          </mat-chip>
+        </mat-chip-list>
+        <!-- manufacturer filters -->
+        <mat-chip-list aria-label="Route Filters" style="display: inline-block; justify-content: center;"
+          removeable="true" *ngIf="routeFilters.length > 0">
+          <mat-label class="chip-list">Route</mat-label>
+          <mat-chip *ngFor="let filter of routeFilters" [selectable]="selectable" [removable]="removable"
+            (removed)="removeFilter(filter, routeFilters)">
+            {{ titleCase(objectValues(filter)[0]) }}
+            <button matChipRemove *ngIf="removable">
+              <mat-icon>cancel</mat-icon>
+            </button>
+          </mat-chip>
+        </mat-chip-list>
+        <span class="clear-all" *ngIf="(manufacturerFilters.length + routeFilters.length) > 0" (click)="onClearAll()">Clear all</span>
+      </div>
+  </div>
+    <!-- drug list -->
+    <div fxLayout="row" fxFlex class="drug-list">
+      <div fxLayout="column" fxFlex class="drug-list">
+        <div fxLayout="row wrap" fxLayoutGap="2em grid">
+          <div fxFlex="50%" fxFlex.xs="100%" fxFlex.sm="100%" *ngFor="let drug of drugs">
+            <mat-card class="example-card">
+              <mat-card-header>
+                <mat-card-title>
+                  <fa-icon [icon]="faFlask" class="icon drug"></fa-icon>
+                  <a class="drug-link" [routerLink]="['/drugs', drug.id]">{{ titleCase(drug.openfda.brand_name) }}</a>
+                </mat-card-title>
+              </mat-card-header>
+              <mat-divider></mat-divider>
+              <mat-card-content>
+                <!--div fxLayout="row" fxLayout.xs="column" *ngIf="drug.openfda?.generic_name">
+                  <div fxFlex="25" fxFlex.xs="75" fxFlexOrder="1">
+                    <p class="label">ID</p>
+                  </div>
+                  <div fxFlex="75" fxFlex.xs="25" fxFlexOrder="2">
+                    <div>{{ drug.id }}</div>
+                  </div>
+                </div-->
+                <div fxLayout="row" fxLayout.xs="column" *ngIf="drug.openfda?.generic_name">
+                  <div fxFlex="25" fxFlex.xs="75" fxFlexOrder="1">
+                    <p class="label">Generic Name</p>
+                  </div>
+                  <div fxFlex="75" fxFlex.xs="25" fxFlexOrder="2">
+                    <div>{{ drug.openfda?.generic_name }}</div>
+                  </div>
+                </div>
+                <div fxLayout="row" fxLayout.xs="column" *ngIf="drug.openfda?.manufacturer_name?.length > 0">
+                  <div fxFlex="25" fxFlex.xs="75" fxFlexOrder="1">
+                    <p class="label">Manufacturer</p>
+                  </div>
+                  <div fxFlex="75" fxFlex.xs="25" fxFlexOrder="2">
+                    <div>
+                      <a class="facet-filter" (click)="onManufacturerFacetClicked(drug.openfda.manufacturer_name)">{{ drug.openfda.manufacturer_name }}</a>
+                    </div>
+                  </div>
+                </div>
+                <div fxLayout="row" fxLayout.xs="column" *ngIf="drug.effective_time">
+                  <div fxFlex="25" fxFlex.xs="75" fxFlexOrder="1">
+                    <p class="label">Approval Date</p>
+                  </div>
+                  <div fxFlex="75" fxFlex.xs="25" fxFlexOrder="2">
+                    <div>{{ drug.effective_time | date:'longDate' }}</div>
+                  </div>
+                </div>
+                <div fxLayout="row" fxLayout.xs="column" *ngIf="drug.openfda.route">
+                  <div fxFlex="25" fxFlex.xs="75" fxFlexOrder="1">
+                    <p class="label">Route</p>
+                  </div>
+                  <div fxFlex="75" fxFlex.xs="25" fxFlexOrder="2">
+                    <div>{{ drug.openfda.route }}</div>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </div>
+        <div *ngIf="drugsLoading" class="spinner-item" style="height: 100vh;">
+          <mat-progress-spinner [mode]="'indeterminate'" [diameter]="50" [value]="50"
+            style="margin: 10px auto auto auto;">
+          </mat-progress-spinner>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-scroll-container>
